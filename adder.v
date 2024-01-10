@@ -26,7 +26,7 @@ module Adder
     wire [ INPUTSIZE - 1: 0] carry;
     genvar i;
     
-    FullAdder adder( a[0], b[0], 1'b0, carry[0], s[0]);
+    FullAdder adder( a[0], b[0], cin, carry[0], s[0]);
 
     generate
         for( i = 1; i < INPUTSIZE; i = i + 1) begin 

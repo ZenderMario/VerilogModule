@@ -3,14 +3,13 @@
 `include "slt.v"
 `include "alu.v"
 `include "multiplier.v"
-`include "ram.v"
 `include "register_file.v"
 
 //some components for each phase
 module ControlUnit(
     input [7:0] instr,
 
-    output reg [2:0] insType,
+    output reg [1:0] insType,
     output reg [1:0] dst,
     output reg [3:0] aluc,
     output reg       writeControl
@@ -19,30 +18,20 @@ module ControlUnit(
     always @(instr) begin 
         if( instr[7:6] == 2'b10) begin
             //wirte to register
-            insType      = 3'b00;
+            insType      = 2'b00;
             dst          = instr[5:4];
             aluc         = 4'b0010;
             writeControl = 1'b1;
         end
         else if( instr[7:2] == 6'b1111_00) begin
             //read from register
-            insType      = 3'b001;
+            insType      = 2'b01;
             dst          = 2'b10;
             aluc         = 4'b0010;
             writeControl = 1'b0;
         end
-        else if( instr[7:2] == 6'b1111_01) begin 
-            //jump
-            
-        end
-        else if( instr[7:2] == 6'b1111_10) begin 
-            //
-        end
-        else if( instr[7:2] == 6'b1111_11) begin 
-            //read instructions from memory instead of input
-        end
         else begin 
-            insType      = 3'b010;
+            insType      = 2'b10;
             dst          = 2'b10;
             aluc         = instr[7:4];
             writeControl = 1'b1;
@@ -69,7 +58,7 @@ module Decode
 (
     input  [7:0] instr,
 
-    output [2:0] insType,
+    output [1:0] insType,
     output reg [1:0] src1,
     output reg [1:0] src2,
     output [1:0] dst,
@@ -79,28 +68,25 @@ module Decode
     ControlUnit control(instr, insType, dst, aluc, write);    
 
     
-    always @(insType) begin 
-
+    always @(instr) begin 
         case( insType) 
-            3'b000 : //store immediate to registers
+            2'b00 : //store immediate to registers
                 begin 
                     src1 = 2'b11;
                     src2 = 2'b11;
                 end
-            3'b001 : //load  register and print it to screen
+            2'b01 : //load  register and print it to screen
                 begin 
                     src1 = instr[1:0];
                     src2 = 2'b11;
                 end
-            3'b010 : //r instruction
+            2'b10 : //alu instruction
                 begin 
                     src1 = instr[3:2];
                     src2 = instr[1:0];
                 end
         endcase
     end
-
-
 endmodule 
 
 module Excute
@@ -133,7 +119,7 @@ module TinyCPU
     //destination for data to write to regFile
     wire [1:0] dst;
     wire       writeControl;
-    wire [2:0] insType;
+    wire [1:0] insType;
 
     wire [3:0] aluc;
     
@@ -159,7 +145,17 @@ module TinyCPU
     
     /****************************************************/
 
-    RegisterFile regFile( src1, src2, dst, valE, writeControl, clk, reg1, reg2);
+    reg writeControlR;
+    reg [1:0] dstR;
+    reg [7:0] valER;
+    
+    always @( negedge clk) begin 
+        writeControlR = writeControl;
+        dstR          = dst;
+        valER         = valE;
+    end
+
+    RegisterFile regFile( clk,  writeControlR,src1, src2, dstR, valER, reg1, reg2);
     
     /****************************************************/
 
@@ -170,15 +166,15 @@ module TinyCPU
     
     always @( insType or reg1 or outComplement) begin 
         case(insType) 
-            3'b000 : valA = outComplement;
+            2'b00 : valA = outComplement;
             default : valA = reg1;
         endcase
     end
 
     always @( insType or reg2) begin 
         case(insType) 
-            3'b000 : valB = 8'b0;
-            3'b001 : valB = 8'b0;
+            2'b00 : valB = 8'b0;
+            2'b01 : valB = 8'b0;
             default : valB = reg2;
         endcase
     end
